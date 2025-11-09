@@ -44,16 +44,41 @@ def make_output_path(
     if output_directory is None:
         base = base_path
         if base and base.strip():
-            output_path = Path(os.path.expanduser(base))
+            # Expand user path and resolve to absolute path
+            expanded_base = os.path.expanduser(base.strip())
+            output_path = Path(expanded_base).resolve()
         else:
-            output_path = Path.home() / "Desktop"
+            # Default to Desktop, but fall back to user's Documents if Desktop doesn't exist
+            home = Path.home()
+            desktop = home / "Desktop"
+            if desktop.exists() and os.access(desktop, os.W_OK):
+                output_path = desktop
+            else:
+                # Fallback to Documents directory on Windows
+                documents = home / "Documents"
+                if documents.exists() and os.access(documents, os.W_OK):
+                    output_path = documents / "audio"
+                else:
+                    # Last resort: use temp directory
+                    output_path = Path(tempfile.gettempdir()) / "elevenlabs_audio"
     elif not os.path.isabs(output_directory) and base_path:
-        output_path = Path(os.path.expanduser(base_path)) / Path(output_directory)
+        expanded_base = os.path.expanduser(base_path.strip())
+        base_path_resolved = Path(expanded_base).resolve()
+        output_path = base_path_resolved / Path(output_directory)
     else:
-        output_path = Path(os.path.expanduser(output_directory))
+        expanded_output = os.path.expanduser(output_directory)
+        output_path = Path(expanded_output).resolve()
+    
+    # Ensure parent directory exists and is writable
+    try:
+        output_path.mkdir(parents=True, exist_ok=True)
+    except (OSError, PermissionError) as e:
+        make_error(f"Failed to create directory ({output_path}): {e}")
+    
+    # Check if directory is writeable
     if not is_file_writeable(output_path):
         make_error(f"Directory ({output_path}) is not writeable")
-    output_path.mkdir(parents=True, exist_ok=True)
+    
     return output_path
 
 

@@ -44,6 +44,27 @@ def generate_config(api_key: str | None = None):
         print("  3. Add ELEVENLABS_API_KEY to your .env file")
         sys.exit(1)
 
+    # Set default base path to project audio directory
+    current_file = Path(__file__).resolve()
+    project_root = current_file.parent.parent.parent
+    audio_dir = project_root / "audio"
+    base_path_env = os.environ.get("ELEVENLABS_MCP_BASE_PATH")
+    
+    env_vars = {"ELEVENLABS_API_KEY": final_api_key}
+    
+    # Set base path if not already set in environment
+    if not base_path_env:
+        if project_root.name == "AdForgeMain" and (audio_dir.exists() or project_root.exists()):
+            env_vars["ELEVENLABS_MCP_BASE_PATH"] = str(audio_dir)
+        else:
+            # Use Documents/audio as fallback
+            home = Path.home()
+            documents_audio = home / "Documents" / "audio"
+            if (home / "Documents").exists():
+                env_vars["ELEVENLABS_MCP_BASE_PATH"] = str(documents_audio)
+    else:
+        env_vars["ELEVENLABS_MCP_BASE_PATH"] = base_path_env
+
     config = {
         "mcpServers": {
             "ElevenLabs": {
@@ -51,7 +72,7 @@ def generate_config(api_key: str | None = None):
                 "args": [
                     str(server_path),
                 ],
-                "env": {"ELEVENLABS_API_KEY": final_api_key},
+                "env": env_vars,
             }
         }
     }

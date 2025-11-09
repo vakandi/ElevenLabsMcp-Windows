@@ -50,7 +50,35 @@ from pathlib import Path
 
 load_dotenv()
 api_key = os.getenv("ELEVENLABS_API_KEY")
-base_path = os.getenv("ELEVENLABS_MCP_BASE_PATH")
+# Set default base_path to project audio directory if running from this project
+env_base_path = os.getenv("ELEVENLABS_MCP_BASE_PATH")
+if env_base_path:
+    default_base_path = env_base_path
+else:
+    # Try to detect if we're in the AdForgeMain project
+    current_file = Path(__file__).resolve()
+    # Navigate up from elevenlabs-mcp/elevenlabs_mcp/server.py to project root
+    project_root = current_file.parent.parent.parent
+    audio_dir = project_root / "audio"
+    
+    # Check if we're in the AdForgeMain project and audio directory exists or can be created
+    if project_root.name == "AdForgeMain" and (audio_dir.exists() or project_root.exists()):
+        default_base_path = str(audio_dir)
+    else:
+        # Fallback to user's Documents/audio or Desktop
+        home = Path.home()
+        documents_audio = home / "Documents" / "audio"
+        desktop = home / "Desktop"
+        if (home / "Documents").exists():
+            default_base_path = str(documents_audio)
+        elif desktop.exists():
+            default_base_path = str(desktop)
+        else:
+            # Last resort: use temp directory
+            import tempfile
+            default_base_path = str(Path(tempfile.gettempdir()) / "elevenlabs_audio")
+
+base_path = default_base_path
 output_mode = os.getenv("ELEVENLABS_MCP_OUTPUT_MODE", "files").strip().lower()
 DEFAULT_VOICE_ID = os.getenv("ELEVENLABS_DEFAULT_VOICE_ID", "cgSgspJ2msm6clMCkdW9")
 
