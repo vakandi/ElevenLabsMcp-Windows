@@ -1,0 +1,52 @@
+# Audio Playback Rules
+
+## When User Asks to Speak or Play Audio
+
+When the user requests to "speak", "say something", "talk", or asks to play/generate audio:
+
+1. **Always use ElevenLabs MCP** to generate audio:
+   - Use `mcp_elevenlabs_text_to_speech` tool with the requested text
+   - Save the audio file to a suitable location (project directory or user's preferred location)
+   - Note the generated file path
+
+2. **Always use VLC to play audio files**:
+   - Use this detection pattern (try in order):
+     1. Check if `vlc` is in PATH: `Get-Command vlc -ErrorAction SilentlyContinue`
+     2. Check common installation paths:
+        - `C:\Program Files\VideoLAN\VLC\vlc.exe`
+        - `C:\Program Files (x86)\VideoLAN\VLC\vlc.exe`
+   - If VLC is found, use it with background playback flags
+   - If VLC is not found, inform the user and ask for the VLC installation path
+
+3. **Background Playback Pattern** (use this exact pattern):
+   ```powershell
+   # Find VLC executable
+   $vlcPath = $null
+   $vlcCmd = Get-Command vlc -ErrorAction SilentlyContinue
+   if ($vlcCmd) {
+       $vlcPath = $vlcCmd.Source
+   } elseif (Test-Path "C:\Program Files\VideoLAN\VLC\vlc.exe") {
+       $vlcPath = "C:\Program Files\VideoLAN\VLC\vlc.exe"
+   } elseif (Test-Path "C:\Program Files (x86)\VideoLAN\VLC\vlc.exe") {
+       $vlcPath = "C:\Program Files (x86)\VideoLAN\VLC\vlc.exe"
+   }
+   
+   if ($vlcPath) {
+       # Play audio in background without showing VLC window
+       Start-Process -FilePath $vlcPath -ArgumentList "`"$audioFile`"", "--intf", "dummy", "--play-and-exit" -WindowStyle Hidden -ErrorAction SilentlyContinue
+   } else {
+       Write-Host "VLC not found. Please install VLC or provide the path to vlc.exe"
+   }
+   ```
+   - This ensures VLC plays in the background without opening a visible window
+   - The `--intf dummy` flag prevents GUI, `--play-and-exit` closes after playback
+
+4. **Always prefer MCP ElevenLabs over other TTS solutions** when available.
+
+5. **For any audio file playback requests**, use VLC in the background as described above.
+
+## Notes
+- Never use `Invoke-Item` or default media players for audio playback
+- Always use VLC with background flags for a clean, non-intrusive playback experience
+- If VLC path needs to be configured, store it in a way that can be reused across sessions
+
